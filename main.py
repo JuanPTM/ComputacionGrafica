@@ -3,14 +3,14 @@ import pickle
 import numpy as np
 from scipy.cluster.vq import vq, kmeans
 
-
+pathVideos = "movies/"
 extension = ".webm"
 nameVideos=["arbol", "casa,", "zagal,", "pez,", "test,"]
 
 
-def GetAllDescriptors(nameVideos,extension):
+def GetAllDescriptors():
     for path in nameVideos:
-        capture = cv2.VideoCapture(path+extension)
+        capture = cv2.VideoCapture(pathVideos+path+extension)
         while True:
             # Capturamos
             ret, frame = capture.read()
@@ -50,6 +50,12 @@ def GenerateCodebook(descriptores):
     codebook, distortion = kmeans(whitened, 20)
     return codebook, dev
 
+def SegmentFrame(frameGray, prevframeGray):
+    m = np.subtract(prevframe.astype(np.int16),frame.astype(np.int16))
+    return np.absolute(m).astype(np.int8)
+
+def FilterByRange(frameGray,minValue=90,maxValue=250):
+     return cv2.inRange(frame, minValue, maxValue)
 
 def cropToRequirements(image):
     return image[100:-100][100:-170]
@@ -75,3 +81,5 @@ def extractIntReg(binFrame, padding=10, minCont=50):
             regions.append((x-padding,y-padding,w+2*padding,h+2*padding))
     return regions
 
+if __name__ == "__main__":
+    pass
