@@ -149,21 +149,21 @@ def intersection(a,b):
   return (x, y, w, h)
 
 if __name__ == "__main__":
-    # try:
-    #     codebook = pickle.load(open('codebook.pickle', 'r'))
-    #     dev = pickle.load(open('dev.pickle', 'r'))
-    # except:
-    #     print "comienzo"
-    #     descriptors = GetAllDescriptors()
-    #     codebook, dev = GenerateCodebook(descriptors)
-    #     pickle.dump(dev, open('dev.pickle', 'w'))
-    #     pickle.dump(codebook, open('codebook.pickle', 'w'))
-    #     print "He terminado"
-    # try:
-    #     histograms = pickle.load(open('allHistograms.pickle', 'r'))
-    # except:
-    #     allHistograms = GenerateAllHistograms()
-    #     pickle.dump(allHistograms, 'allHistograms.pickle', 'w'))
+    try:
+        codebook = pickle.load(open('codebook.pickle', 'r'))
+        dev = pickle.load(open('dev.pickle', 'r'))
+    except:
+        print "comienzo"
+        descriptors = GetAllDescriptors()
+        codebook, dev = GenerateCodebook(descriptors)
+        pickle.dump(dev, open('dev.pickle', 'w'))
+        pickle.dump(codebook, open('codebook.pickle', 'w'))
+        print "He terminado"
+    try:
+        histograms = pickle.load(open('allHistograms.pickle', 'r'))
+    except:
+        allHistograms = GenerateAllHistograms()
+        pickle.dump(allHistograms, open('allHistograms.pickle', 'w'))
     capture = cv2.VideoCapture("movies/test.webm")
     while True:
         # Capturamos
@@ -197,18 +197,14 @@ if __name__ == "__main__":
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
+        for r in regions:
+            # recortar Imagen
+            keypoints, descriptors = orb.detectAndCompute(grayScale, None)
 
+            if descriptors is not None:
+                hist, limites = np.histogram(vq(descriptors/dev, codebook)[:][1],bins=range(21))
+                dist = []
+                for i in range(len(histograms)):
+                    dist.append(min(distance.cdist(histograms[i], np.array([hist]), "euclidean")))
 
-        #
-        # resized = cv2.resize(frame, (640, 480))
-        # gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
-        # # Sacamos keypoints y descriptores
-        #
-        # keypoints, descriptors = orb.detectAndCompute(gray, None)
-        # if descriptors is not None:
-        #     hist, limites = np.histogram(vq(descriptors/dev, codebook)[:][1],bins=range(21))
-        #     dist = []
-        #     for i in range(len(histograms)):
-        #         dist.append(min(distance.cdist(histograms[i], np.array([hist]), "euclidean")))
-        # #cv2.putText(resized,paths[dist.index(min(dist))],(10,500), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),2,cv2.LINE_AA)
-        # cv2.imshow("d", resized)
+            cv2.putText(resized,paths[dist.index(min(dist))],(10,500), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),2,cv2.LINE_AA)
