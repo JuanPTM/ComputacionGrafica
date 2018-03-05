@@ -149,21 +149,21 @@ def intersection(a,b):
   return (x, y, w, h)
 
 if __name__ == "__main__":
-    try:
-        codebook = pickle.load(open('codebook.pickle', 'r'))
-        dev = pickle.load(open('dev.pickle', 'r'))
-    except:
-        print "comienzo"
-        descriptors = GetAllDescriptors()
-        codebook, dev = GenerateCodebook(descriptors)
-        pickle.dump(dev, open('dev.pickle', 'w'))
-        pickle.dump(codebook, open('codebook.pickle', 'w'))
-        print "He terminado"
-    try:
-        histograms = pickle.load(open('allHistograms.pickle', 'r'))
-    except:
-        allHistograms = GenerateAllHistograms()
-        pickle.dump(allHistograms, 'allHistograms.pickle', 'w'))
+    # try:
+    #     codebook = pickle.load(open('codebook.pickle', 'r'))
+    #     dev = pickle.load(open('dev.pickle', 'r'))
+    # except:
+    #     print "comienzo"
+    #     descriptors = GetAllDescriptors()
+    #     codebook, dev = GenerateCodebook(descriptors)
+    #     pickle.dump(dev, open('dev.pickle', 'w'))
+    #     pickle.dump(codebook, open('codebook.pickle', 'w'))
+    #     print "He terminado"
+    # try:
+    #     histograms = pickle.load(open('allHistograms.pickle', 'r'))
+    # except:
+    #     allHistograms = GenerateAllHistograms()
+    #     pickle.dump(allHistograms, 'allHistograms.pickle', 'w'))
     capture = cv2.VideoCapture("movies/test.webm")
     while True:
         # Capturamos
