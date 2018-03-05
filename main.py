@@ -1,5 +1,6 @@
 import cv2
 import pickle
+import numpy as np
 from scipy.cluster.vq import vq, kmeans
 
 
@@ -48,3 +49,29 @@ def GenerateCodebook(descriptores):
     whitened, dev = whiten(descriptores)
     codebook, distortion = kmeans(whitened, 20)
     return codebook, dev
+
+
+def cropToRequirements(image):
+    return image[100:-100][100:-170]
+
+def scale(image,col=1120):
+    return cv2.resize(image,None,fx=col/image.shape[1],fy=col/image.shape[1])
+
+def morphFilters(binFrame):
+    kernel = np.ones((3,3),np.uint8)
+    dilateImage = cv2.dilate(binFrame,kernel,iterations=1)
+    erodeImg = cv2.erode(dilateImage,kernel,iterations=2)
+    dilateImage = cv2.dilate(erodeImg, kernel, iterations=4)
+    return dilateImage
+
+def extractIntReg(binFrame, padding=10, minCont=50):
+    aux = np.copy(binFrame)
+    regions = []
+    image,contours,hierarchy = cv2.findContours(binFrame,cv2.RETR_LIST,cv2.CHAIN_APROX_SIMPLE)
+
+    for cont in contours:
+        if len(cont) > minCont:
+            x,y,w,h = cv2.boundingRect(cont)
+            regions.append((x-padding,y-padding,w+2*padding,h+2*padding))
+    return regions
+
