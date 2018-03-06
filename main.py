@@ -2,6 +2,7 @@ import cv2
 import pickle
 import numpy as np
 from scipy.cluster.vq import vq, kmeans
+from scipy.spatial import distance
 
 pathVideos = "movies/"
 extension = ".webm"
@@ -126,11 +127,12 @@ def extractIntReg(binFrame, padding=10, minCont=50):
                 paddingx = x
             if y < 10:
                 paddingy = y
-            if x+w+padding > image.shape[1]:
-                paddingw = image.shape[1]-x-w
-            if y+h+padding > image.shape[0]:
-                paddingh = image.shape[0]-y-h
+            if x+w+padding >= image.shape[1]:
+                paddingw = image.shape[1] - x - w - 1
+            if y+h+padding >= image.shape[0]:
+                paddingh = image.shape[0] - y - h - 1
             regions.append((x-paddingx,y-paddingy, w+paddingx+paddingw, h+paddingy+paddingh))
+            # regions.append((x,y, w, h))
     return regions,contours
 
 def union(a,b):
@@ -148,7 +150,7 @@ def intersection(a,b):
   if w<0 or h<0: return None # or (0,0,0,0) ?
   return (x, y, w, h)
 
-if __name__ == "__main__":
+def Init_Matcher():
     try:
         codebook = pickle.load(open('codebook.pickle', 'r'))
         dev = pickle.load(open('dev.pickle', 'r'))
@@ -160,10 +162,17 @@ if __name__ == "__main__":
         pickle.dump(codebook, open('codebook.pickle', 'w'))
         print "He terminado"
     try:
-        histograms = pickle.load(open('allHistograms.pickle', 'r'))
+        allHistograms = pickle.load(open('allHistograms.pickle', 'r'))
     except:
         allHistograms = GenerateAllHistograms()
         pickle.dump(allHistograms, open('allHistograms.pickle', 'w'))
+    return allHistograms, codebook, dev
+
+if __name__ == "__main__":
+
+    allHistograms, codebook, dev = Init_Matcher()
+    print "hola"
+    orb = cv2.ORB_create()
     capture = cv2.VideoCapture("movies/test.webm")
     while True:
         # Capturamos
@@ -171,40 +180,54 @@ if __name__ == "__main__":
         if ret == False:
             break
 
-        # Convertimos a gris
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
         # Recortamos
-        graycrop = cropToRequirements(gray)
+        crop = cropToRequirements(frame)
+
+        # Convertimos a gris
+        gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+
 
         # Escalamos
-        grayScale = scale(graycrop)
+        grayScale = scale(gray)
 
         binImg = FilterByRange(grayScale)
 
         procesedImage = morphFilters(binImg)
 
         regions, contornos = extractIntReg(procesedImage)
-        cv2.drawContours(grayScale, contornos, -1, (0,255,0), 3)
 
-        show_image = np.copy(procesedImage)
+        outImage = np.copy(scale(crop))
 
-        for r in regions:
-            cv2.rectangle(grayScale,(r[0],r[1]),(r[0]+r[2],r[1]+r[3]),(255,0,0))
+        cv2.drawContours(outImage, contornos, -1, (0,255,0), 3)
 
-        cv2.imshow("d", grayScale)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
         for r in regions:
-            # recortar Imagen
-            keypoints, descriptors = orb.detectAndCompute(grayScale, None)
-
+            imgReg = grayScale[r[1]:r[1]+r[3], r[0]:r[0]+r[2]]
+            # cv2.imshow("asdads", imgReg)
+            keypoints, descriptors = orb.detectAndCompute(imgReg, None)
+            #
             if descriptors is not None:
                 hist, limites = np.histogram(vq(descriptors/dev, codebook)[:][1],bins=range(21))
                 dist = []
-                for i in range(len(histograms)):
-                    dist.append(min(distance.cdist(histograms[i], np.array([hist]), "euclidean")))
+                for i in range(len(allHistograms)):
+                    distancias = distance.cdist(allHistograms[i], np.array([hist]), "euclidean")
+                    distancias.sort()
+                    map(lambda x: dist.append( ( x[0], nameVideos[i] )), distancias[0:20])
+                dist.sort()
+                # print dist
+                guess = "Desconocido"
+                for i in range(0,len(dist)):
+                    if dist[0][1] != dist[i][1]:
+                        print dist[0], dist[i]
+                        if dist[0][0]/dist[i][0] < 0.75:
+                            guess = dist[0][1]
+                        else:
+                            guess = "Desconocido"
+                        break
 
-            cv2.putText(resized,paths[dist.index(min(dist))],(10,500), cv2.FONT_HERSHEY_SIMPLEX, 4,(255,255,255),2,cv2.LINE_AA)
+                cv2.rectangle(outImage,(r[0],r[1]),(r[0]+r[2],r[1]+r[3]),(255,0,0))
+                cv2.putText(outImage, guess, (r[0],r[1]), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2,cv2.LINE_AA)
+                cv2.imshow("d", outImage)
