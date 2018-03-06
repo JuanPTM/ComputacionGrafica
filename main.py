@@ -22,20 +22,29 @@ def GetAllDescriptors():
                 break
 
             # Convertimos a gris
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            crop = cropToRequirements(frame)
 
-            # Recortamos
-            graycrop = cropToRequirements(gray)
+            # Convertimos a gris
+            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+
 
             # Escalamos
-            grayScale = scale(graycrop)
+            grayScale = scale(gray)
 
-            # Sacamos keypoints y descriptores
-            keypoints, descriptors = orb.detectAndCompute(grayScale, None)
-            if allDescriptors is None:
-                allDescriptors = descriptors
-            elif descriptors is not None:
-                allDescriptors = np.vstack((allDescriptors, descriptors))
+            binImg = FilterByRange(grayScale)
+
+            procesedImage = morphFilters(binImg)
+
+            regions, contornos = extractIntReg(procesedImage)
+
+            for r in regions:
+                imgReg = grayScale[r[1]:r[1]+r[3], r[0]:r[0]+r[2]]
+                # Sacamos keypoints y descriptores
+                keypoints, descriptors = orb.detectAndCompute(imgReg, None)
+                if allDescriptors is None:
+                    allDescriptors = descriptors
+                elif descriptors is not None:
+                    allDescriptors = np.vstack((allDescriptors, descriptors))
     return allDescriptors
 
 def whiten(v, dev=None):
@@ -60,7 +69,7 @@ def GenerateCodebook(descriptors):
     codebook, distortion = kmeans(whitened, 20)
     return codebook, dev
 
-def GenerateAllHistograms():
+def GenerateAllHistograms(codebook, dev):
     allHistograms =[]
     orb = cv2.ORB_create()
     allDescriptors = None
@@ -75,23 +84,31 @@ def GenerateAllHistograms():
                 break
 
             # Convertimos a gris
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            crop = cropToRequirements(frame)
 
-            # Recortamos
-            graycrop = cropToRequirements(gray)
+            # Convertimos a gris
+            gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
+
 
             # Escalamos
-            grayScale = scale(graycrop)
+            grayScale = scale(gray)
 
-            # Sacamos keypoints y descriptores
-            keypoints, descriptors = orb.detectAndCompute(grayScale, None)
+            binImg = FilterByRange(grayScale)
 
-            if descriptors is not None:
-                histogram, limites = np.histogram(vq(descriptors/dev, codebook)[:][1],bins=range(21))
-                if histograms is None:
-                    histograms = histogram
-                else:
-                    histograms = np.vstack((histograms, histogram))
+            procesedImage = morphFilters(binImg)
+
+            regions, contornos = extractIntReg(procesedImage)
+
+            for r in regions:
+                imgReg = grayScale[r[1]:r[1]+r[3], r[0]:r[0]+r[2]]
+                # Sacamos keypoints y descriptores
+                keypoints, descriptors = orb.detectAndCompute(imgReg, None)
+                if descriptors is not None:
+                    histogram, limites = np.histogram(vq(descriptors/dev, codebook)[:][1],bins=range(21))
+                    if histograms is None:
+                        histograms = histogram
+                    else:
+                        histograms = np.vstack((histograms, histogram))
         allHistograms.append(histograms)
     return allHistograms
 
@@ -164,13 +181,14 @@ def Init_Matcher():
     try:
         allHistograms = pickle.load(open('allHistograms.pickle', 'r'))
     except:
-        allHistograms = GenerateAllHistograms()
+        allHistograms = GenerateAllHistograms(codebook, dev)
         pickle.dump(allHistograms, open('allHistograms.pickle', 'w'))
     return allHistograms, codebook, dev
 
 if __name__ == "__main__":
 
     allHistograms, codebook, dev = Init_Matcher()
+
     print "hola"
     orb = cv2.ORB_create()
     capture = cv2.VideoCapture("movies/test.webm")
