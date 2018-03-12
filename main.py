@@ -3,11 +3,12 @@ import pickle
 import numpy as np
 from scipy.cluster.vq import vq, kmeans
 from scipy.spatial import distance
-
+import time
 pathVideos = "movies/"
 extension = ".webm"
 nameVideos=["arbol", "casa", "zagal", "pez"]
 
+MAXAREA = 500
 
 def GetAllDescriptors():
     orb = cv2.ORB_create()
@@ -164,8 +165,26 @@ def intersection(a,b):
   y = max(a[1], b[1])
   w = min(a[0]+a[2], b[0]+b[2]) - x
   h = min(a[1]+a[3], b[1]+b[3]) - y
-  if w<0 or h<0: return None # or (0,0,0,0) ?
+  if w<0 or h<0: return (0,0,0,0)
   return (x, y, w, h)
+
+def area(a):
+    return a[2] * a[3]
+
+def areaIntersec(a,b):
+    AInter = area(intersection(a, b))
+    AUnion = area(union(a, b))
+    Porcent = 0.
+    if AInter is not 0:
+        Porcent = float(AInter)/AUnion
+    return AInter, AUnion, Porcent
+    # if AInter is not 0:
+    #     PercentInterR1 = area(a)/AInter
+    #     PercentInterR2 = area(b)/AInter
+    # else:
+    #     PercentInterR1 = 0
+    #     PercentInterR2 = 0
+    # return AInter, PercentInterR1,PercentInterR2
 
 def Init_Matcher():
     try:
@@ -189,7 +208,6 @@ if __name__ == "__main__":
 
     allHistograms, codebook, dev = Init_Matcher()
 
-    print "hola"
     orb = cv2.ORB_create()
     capture = cv2.VideoCapture("movies/test.webm")
     while True:
@@ -218,10 +236,11 @@ if __name__ == "__main__":
 
         cv2.drawContours(outImage, contornos, -1, (0,255,0), 3)
 
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
+        #
+        # if cv2.waitKey(1) & 0xFF == ord('q'):
+        #     break
+        cv2.waitKey(1000)
+        guessReg = []
         for r in regions:
             imgReg = grayScale[r[1]:r[1]+r[3], r[0]:r[0]+r[2]]
             # cv2.imshow("asdads", imgReg)
@@ -237,15 +256,59 @@ if __name__ == "__main__":
                 dist.sort()
                 # print dist
                 guess = "Desconocido"
+                minValue = 0
                 for i in range(0,len(dist)):
                     if dist[0][1] != dist[i][1]:
-                        print dist[0], dist[i]
+                        # print dist[0], dist[i]
                         if dist[0][0]/dist[i][0] < 0.75:
                             guess = dist[0][1]
                         else:
                             guess = "Desconocido"
+                        minValue = dist[0][0]/dist[i][0]
                         break
+                guessReg.append((r,guess,minValue))
 
-                cv2.rectangle(outImage,(r[0],r[1]),(r[0]+r[2],r[1]+r[3]),(255,0,0))
-                cv2.putText(outImage, guess, (r[0],r[1]), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2,cv2.LINE_AA)
-                cv2.imshow("d", outImage)
+
+        newGuessReg = []
+        flagsRemove = [0]*len(guessReg)
+
+        for i in range(len(guessReg)):
+            for j in range(i+1,len(guessReg)-1):
+                if flagsRemove[i] is 1 or flagsRemove[j] is 1:
+                    continue
+                r1 = guessReg[i]
+                r2 = guessReg[j]
+
+                AInter,AUnion,Porcent = areaIntersec(r1[0], r2[0])
+                if AInter is 0:
+                    continue
+                print r1[1],r2[1], Porcent
+                if r1[1] == r2[1]:
+                    if Porcent>0.25:
+                        newGuessReg.append((union(r1[0], r2[0]),r1[1],r1[2]))
+                        flagsRemove[i] = 1
+                        flagsRemove[j] = 1
+                        # break
+                else:
+                    if r1 is "Desconocido":
+                        flagsRemove[i] = 1
+                    elif r2 is "Desconocido":
+                        flagsRemove[j] = 1
+                    elif Porcent>0.25:
+                        if r1[2]<r2[2]:
+                            flagsRemove[j] = 1
+                        else:
+                            flagsRemove[i] = 1
+
+        guessReg = [guessReg[i] for i in range(len(guessReg)) if flagsRemove[i] is not 1]
+
+
+        newGuessReg.extend(guessReg)
+
+
+        for tupla in newGuessReg:
+            r = tupla[0]
+            guess = tupla[1]
+            cv2.rectangle(outImage,(r[0],r[1]),(r[0]+r[2],r[1]+r[3]),(255,0,0))
+            cv2.putText(outImage, guess, (r[0],r[1]), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2,cv2.LINE_AA)
+            cv2.imshow("d", outImage)
