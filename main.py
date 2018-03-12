@@ -4,6 +4,10 @@ import numpy as np
 from scipy.cluster.vq import vq, kmeans
 from scipy.spatial import distance
 import time
+from sklearn.neighbors import KNeighborsClassifier
+
+
+
 pathVideos = "movies/"
 extension = ".webm"
 nameVideos=["arbol", "casa", "zagal", "pez"]
@@ -210,6 +214,16 @@ if __name__ == "__main__":
 
     orb = cv2.ORB_create()
     capture = cv2.VideoCapture("movies/test.webm")
+
+
+    X = [x for h in allHistograms for x in h ]
+    Y = [nameVideos[c] for c in range(len(nameVideos)) for x in range(len(allHistograms[c]))]
+
+
+    print Y
+    exit(0)
+
+
     while True:
         # Capturamos
         ret, frame = capture.read()
@@ -240,6 +254,10 @@ if __name__ == "__main__":
         # if cv2.waitKey(1) & 0xFF == ord('q'):
         #     break
         cv2.waitKey(1000)
+
+
+
+
         guessReg = []
         for r in regions:
             imgReg = grayScale[r[1]:r[1]+r[3], r[0]:r[0]+r[2]]
