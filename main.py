@@ -7,7 +7,6 @@ import time
 from sklearn.neighbors import KNeighborsClassifier
 
 
-
 pathVideos = "movies/"
 extension = ".webm"
 nameVideos=["arbol", "casa", "zagal", "pez"]
@@ -142,7 +141,7 @@ def extractIntReg(binFrame, padding=10, minCont=50):
     regions = []
     image,contours,hierarchy = cv2.findContours(binFrame,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
     for cont in contours:
-        if len(cont) > minCont and cv2.contourArea(cont)>2500:
+        if len(cont) > minCont and cv2.contourArea(cont)>300:
             x,y,w,h = cv2.boundingRect(cont)
             paddingx = paddingy = paddingw = paddingh = 10
             if x < 10:
@@ -219,9 +218,8 @@ if __name__ == "__main__":
     X = [x for h in allHistograms for x in h ]
     Y = [nameVideos[c] for c in range(len(nameVideos)) for x in range(len(allHistograms[c]))]
 
-
-    print Y
-    exit(0)
+    neigh = KNeighborsClassifier(n_neighbors=5)
+    neigh.fit(X, Y)
 
 
     while True:
@@ -253,7 +251,7 @@ if __name__ == "__main__":
         #
         # if cv2.waitKey(1) & 0xFF == ord('q'):
         #     break
-        cv2.waitKey(1000)
+        cv2.waitKey(2)
 
 
 
@@ -264,8 +262,14 @@ if __name__ == "__main__":
             # cv2.imshow("asdads", imgReg)
             keypoints, descriptors = orb.detectAndCompute(imgReg, None)
             #
-            if descriptors is not None:
+            if descriptors is not None and descriptors.shape[0]>20:
                 hist, limites = np.histogram(vq(descriptors/dev, codebook)[:][1],bins=range(21))
+                guess = neigh.predict([hist])[0]
+                prob = np.amax(neigh.predict_proba([hist])[0])
+                #print prob
+                #print guess
+                minValue = 0
+                """
                 dist = []
                 for i in range(len(allHistograms)):
                     distancias = distance.cdist(allHistograms[i], np.array([hist]), "euclidean")
@@ -283,24 +287,26 @@ if __name__ == "__main__":
                         else:
                             guess = "Desconocido"
                         minValue = dist[0][0]/dist[i][0]
-                        break
-                guessReg.append((r,guess,minValue))
+                        break"""
+                guessReg.append((r,guess,prob))
 
 
         newGuessReg = []
         flagsRemove = [0]*len(guessReg)
 
         for i in range(len(guessReg)):
-            for j in range(i+1,len(guessReg)-1):
-                if flagsRemove[i] is 1 or flagsRemove[j] is 1:
-                    continue
+            for j in range(i+1,len(guessReg)):
+                #if flagsRemove[i] is 1 or flagsRemove[j] is 1:
+                #   continue
+
                 r1 = guessReg[i]
                 r2 = guessReg[j]
 
                 AInter,AUnion,Porcent = areaIntersec(r1[0], r2[0])
+
                 if AInter is 0:
                     continue
-                print r1[1],r2[1], Porcent
+                #print r1[1],r2[1], Porcent, r1[2],r2[2]
                 if r1[1] == r2[1]:
                     if Porcent>0.25:
                         newGuessReg.append((union(r1[0], r2[0]),r1[1],r1[2]))
@@ -308,18 +314,19 @@ if __name__ == "__main__":
                         flagsRemove[j] = 1
                         # break
                 else:
-                    if r1 is "Desconocido":
+                    if r1[1] is "Desconocido":
                         flagsRemove[i] = 1
-                    elif r2 is "Desconocido":
+                    elif r2[1] is "Desconocido":
                         flagsRemove[j] = 1
-                    elif Porcent>0.25:
-                        if r1[2]<r2[2]:
+                    elif Porcent>0.20:
+                        if r1[2]>r2[2]:
                             flagsRemove[j] = 1
+                            #print r1[1], r2[1], Porcent, r1[2], r2[2], "ELEJIDO "+r1[1]
                         else:
                             flagsRemove[i] = 1
+                            #print r1[1], r2[1], Porcent, r1[2], r2[2], "ELEJIDO " + r2[1]
 
         guessReg = [guessReg[i] for i in range(len(guessReg)) if flagsRemove[i] is not 1]
-
 
         newGuessReg.extend(guessReg)
 
@@ -328,5 +335,5 @@ if __name__ == "__main__":
             r = tupla[0]
             guess = tupla[1]
             cv2.rectangle(outImage,(r[0],r[1]),(r[0]+r[2],r[1]+r[3]),(255,0,0))
-            cv2.putText(outImage, guess, (r[0],r[1]), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2,cv2.LINE_AA)
+            cv2.putText(outImage, guess +" "+ str(tupla[2]*100), (r[0],r[1]), cv2.FONT_HERSHEY_SIMPLEX, 1,(255,255,255),2,cv2.LINE_AA)
             cv2.imshow("d", outImage)
