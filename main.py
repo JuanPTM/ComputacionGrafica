@@ -17,7 +17,9 @@ def GetAllDescriptors():
     orb = cv2.ORB_create()
     allDescriptors = None
     for path in nameVideos:
-	counter = 0
+        counter = 0
+        segmented = None
+        prevFrame = None
         print pathVideos+path+extension
         capture = cv2.VideoCapture(pathVideos+path+extension)
         while True:
@@ -25,16 +27,20 @@ def GetAllDescriptors():
             ret, frame = capture.read()
             if ret == False:
                 break
-            counter += 1
-            if counter % 10 is not 0:
-                continue
+            #counter += 1
+            #if counter % 10 is not 0:
+            #    continue
+
+
 
             # Convertimos a gris
             crop = cropToRequirements(frame)
 
             # Convertimos a gris
             gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-
+            if prevFrame is not None:
+                segmented = SegmentFrame(gray,prevFrame)
+            prevFrame = np.copy(gray)
 
             # Escalamos
             grayScale = scale(gray)
@@ -45,14 +51,29 @@ def GetAllDescriptors():
 
             regions, contornos = extractIntReg(procesedImage)
 
+            #cv2.waitKey(50)
+            #if segmented is not None:
+            #outImage = np.copy(grayScale)
+            #cv2.putText(outImage, str(len(regions)) + " " + str(len(contornos)),
+            #            (grayScale.shape[0] / 2, grayScale.shape[1] / 2), cv2.FONT_HERSHEY_SIMPLEX, 1,
+            #            (255, 255, 255), 2, cv2.LINE_AA)
+            #cv2.drawContours(outImage, contornos, -1, (0, 255, 0), 3)
+
+
+            if len(regions) > 4:
+                continue
+
             for r in regions:
                 imgReg = grayScale[r[1]:r[1]+r[3], r[0]:r[0]+r[2]]
+             #   cv2.rectangle(outImage, (r[0], r[1]), (r[0] + r[2], r[1] + r[3]), (255, 0, 0))
                 # Sacamos keypoints y descriptores
                 keypoints, descriptors = orb.detectAndCompute(imgReg, None)
                 if allDescriptors is None:
                     allDescriptors = descriptors
                 elif descriptors is not None:
                     allDescriptors = np.vstack((allDescriptors, descriptors))
+
+            #cv2.imshow("d", outImage)
     return allDescriptors
 
 def whiten(v, dev=None):
@@ -198,20 +219,20 @@ def areaIntersec(a,b):
 
 def Init_Matcher():
     try:
-        codebook = pickle.load(open('codebook_2.pickle', 'r'))
-        dev = pickle.load(open('dev_2.pickle', 'r'))
+        codebook = pickle.load(open('codebook_s.pickle', 'r'))
+        dev = pickle.load(open('dev_s.pickle', 'r'))
     except:
         print "comienzo"
         descriptors = GetAllDescriptors()
         codebook, dev = GenerateCodebook(descriptors)
-        pickle.dump(dev, open('dev_2.pickle', 'w'))
-        pickle.dump(codebook, open('codebook_2.pickle', 'w'))
+        pickle.dump(dev, open('dev_s.pickle', 'w'))
+        pickle.dump(codebook, open('codebook_s.pickle', 'w'))
         print "He terminado"
     try:
-        allHistograms = pickle.load(open('allHistograms_2.pickle', 'r'))
+        allHistograms = pickle.load(open('allHistograms.pickle', 'r'))
     except:
         allHistograms = GenerateAllHistograms(codebook, dev)
-        pickle.dump(allHistograms, open('allHistograms_2.pickle', 'w'))
+        pickle.dump(allHistograms, open('allHistograms.pickle', 'w'))
     return allHistograms, codebook, dev
 
 if __name__ == "__main__":
@@ -258,7 +279,7 @@ if __name__ == "__main__":
         #
         # if cv2.waitKey(1) & 0xFF == ord('q'):
         #     break
-        cv2.waitKey(2)
+        cv2.waitKey(20)
 
 
 
