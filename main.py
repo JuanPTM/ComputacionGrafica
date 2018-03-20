@@ -14,6 +14,7 @@ nameVideos=["arbol", "casa", "zagal", "pez"]
 MAXAREA = 500
 
 def GetAllDescriptors():
+    counter = 0
     orb = cv2.ORB_create()
     allDescriptors = None
     for path in nameVideos:
@@ -22,6 +23,9 @@ def GetAllDescriptors():
         while True:
             # Capturamos
             ret, frame = capture.read()
+            if counter % 10 is not 0:
+                continue
+            counter += 1
             if ret == False:
                 break
 
@@ -191,14 +195,14 @@ def areaIntersec(a,b):
 
 def Init_Matcher():
     try:
-        codebook = pickle.load(open('codebook.pickle', 'r'))
-        dev = pickle.load(open('dev.pickle', 'r'))
+        codebook = pickle.load(open('codebook_2.pickle', 'r'))
+        dev = pickle.load(open('dev_2.pickle', 'r'))
     except:
         print "comienzo"
         descriptors = GetAllDescriptors()
         codebook, dev = GenerateCodebook(descriptors)
-        pickle.dump(dev, open('dev.pickle', 'w'))
-        pickle.dump(codebook, open('codebook.pickle', 'w'))
+        pickle.dump(dev, open('dev_2.pickle', 'w'))
+        pickle.dump(codebook, open('codebook_2.pickle', 'w'))
         print "He terminado"
     try:
         allHistograms = pickle.load(open('allHistograms.pickle', 'r'))
