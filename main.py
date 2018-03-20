@@ -14,20 +14,20 @@ nameVideos=["arbol", "casa", "zagal", "pez"]
 MAXAREA = 500
 
 def GetAllDescriptors():
-    counter = 0
     orb = cv2.ORB_create()
     allDescriptors = None
     for path in nameVideos:
+	counter = 0
         print pathVideos+path+extension
         capture = cv2.VideoCapture(pathVideos+path+extension)
         while True:
             # Capturamos
             ret, frame = capture.read()
-            if counter % 10 is not 0:
-                continue
-            counter += 1
             if ret == False:
                 break
+            counter += 1
+            if counter % 10 is not 0:
+                continue
 
             # Convertimos a gris
             crop = cropToRequirements(frame)
@@ -82,6 +82,7 @@ def GenerateAllHistograms(codebook, dev):
     orb = cv2.ORB_create()
     allDescriptors = None
     for path in nameVideos:
+        counter = 0
         histograms = None
         print pathVideos+path+extension
         capture = cv2.VideoCapture(pathVideos+path+extension)
@@ -90,7 +91,9 @@ def GenerateAllHistograms(codebook, dev):
             ret, frame = capture.read()
             if ret == False:
                 break
-
+            counter += 1
+            if counter % 10 is not 0:
+                continue
             # Convertimos a gris
             crop = cropToRequirements(frame)
 
@@ -205,10 +208,10 @@ def Init_Matcher():
         pickle.dump(codebook, open('codebook_2.pickle', 'w'))
         print "He terminado"
     try:
-        allHistograms = pickle.load(open('allHistograms.pickle', 'r'))
+        allHistograms = pickle.load(open('allHistograms_2.pickle', 'r'))
     except:
         allHistograms = GenerateAllHistograms(codebook, dev)
-        pickle.dump(allHistograms, open('allHistograms.pickle', 'w'))
+        pickle.dump(allHistograms, open('allHistograms_2.pickle', 'w'))
     return allHistograms, codebook, dev
 
 if __name__ == "__main__":
