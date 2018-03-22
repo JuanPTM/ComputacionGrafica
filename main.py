@@ -27,9 +27,9 @@ def GetAllDescriptors():
             ret, frame = capture.read()
             if ret == False:
                 break
-            #counter += 1
-            #if counter % 10 is not 0:
-            #    continue
+            counter += 1
+            if counter % 10 is not 0:
+                continue
 
 
 
@@ -68,10 +68,11 @@ def GetAllDescriptors():
              #   cv2.rectangle(outImage, (r[0], r[1]), (r[0] + r[2], r[1] + r[3]), (255, 0, 0))
                 # Sacamos keypoints y descriptores
                 keypoints, descriptors = orb.detectAndCompute(imgReg, None)
-                if allDescriptors is None:
-                    allDescriptors = descriptors
-                elif descriptors is not None:
-                    allDescriptors = np.vstack((allDescriptors, descriptors))
+		if descriptors is not None and descriptors.shape[0] > 20:
+		        if allDescriptors is None:
+		            allDescriptors = descriptors
+		        elif descriptors is not None:
+		            allDescriptors = np.vstack((allDescriptors, descriptors))
 
             #cv2.imshow("d", outImage)
     return allDescriptors
@@ -95,7 +96,7 @@ def whiten(v, dev=None):
 
 def GenerateCodebook(descriptors):
     whitened, dev = whiten(descriptors)
-    codebook, distortion = kmeans(whitened, 20)
+    codebook, distortion = kmeans(whitened, 21)
     return codebook, dev
 
 def GenerateAllHistograms(codebook, dev):
@@ -135,8 +136,9 @@ def GenerateAllHistograms(codebook, dev):
                 imgReg = grayScale[r[1]:r[1]+r[3], r[0]:r[0]+r[2]]
                 # Sacamos keypoints y descriptores
                 keypoints, descriptors = orb.detectAndCompute(imgReg, None)
-                if descriptors is not None:
-                    histogram, limites = np.histogram(vq(descriptors/dev, codebook)[:][1],bins=range(21))
+                if descriptors is not None and descriptors.shape[0] > 20:
+                    histogram, limites = np.histogram(vq(descriptors/dev, codebook)[0],bins=range(21))
+#                    histogram, limites = np.histogram(vq(descriptors/dev, codebook)[:][1],bins=range(21))
                     if histograms is None:
                         histograms = histogram
                     else:
@@ -169,7 +171,7 @@ def extractIntReg(binFrame, padding=10, minCont=50):
     regions = []
     image,contours,hierarchy = cv2.findContours(binFrame,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
     for cont in contours:
-        if len(cont) > minCont and cv2.contourArea(cont)>300:
+        if cv2.contourArea(cont)>300:
             x,y,w,h = cv2.boundingRect(cont)
             paddingx = paddingy = paddingw = paddingh = 10
             if x < 10:
@@ -219,20 +221,20 @@ def areaIntersec(a,b):
 
 def Init_Matcher():
     try:
-        codebook = pickle.load(open('codebook_s.pickle', 'r'))
-        dev = pickle.load(open('dev_s.pickle', 'r'))
+        codebook = pickle.load(open('codebook_s1.pickle', 'r'))
+        dev = pickle.load(open('dev_s1.pickle', 'r'))
     except:
         print "comienzo"
         descriptors = GetAllDescriptors()
         codebook, dev = GenerateCodebook(descriptors)
-        pickle.dump(dev, open('dev_s.pickle', 'w'))
-        pickle.dump(codebook, open('codebook_s.pickle', 'w'))
+        pickle.dump(dev, open('dev_s1.pickle', 'w'))
+        pickle.dump(codebook, open('codebook_s1.pickle', 'w'))
         print "He terminado"
     try:
-        allHistograms = pickle.load(open('allHistograms.pickle', 'r'))
+        allHistograms = pickle.load(open('allHistograms1.pickle', 'r'))
     except:
         allHistograms = GenerateAllHistograms(codebook, dev)
-        pickle.dump(allHistograms, open('allHistograms.pickle', 'w'))
+        pickle.dump(allHistograms, open('allHistograms1.pickle', 'w'))
     return allHistograms, codebook, dev
 
 if __name__ == "__main__":
@@ -291,7 +293,8 @@ if __name__ == "__main__":
             keypoints, descriptors = orb.detectAndCompute(imgReg, None)
             #
             if descriptors is not None and descriptors.shape[0]>20:
-                hist, limites = np.histogram(vq(descriptors/dev, codebook)[:][1],bins=range(21))
+# OJO OTRO COMENTARIO
+                hist, limites = np.histogram(vq(descriptors/dev, codebook)[0],bins=range(21))
                 guess = neigh.predict([hist])[0]
                 prob = np.amax(neigh.predict_proba([hist])[0])
                 #print prob
