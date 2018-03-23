@@ -297,7 +297,7 @@ def printImage(image, regions):
     for reg in regions:
         r = reg[0]
         guess = reg[1]
-        cv2.rectangle(image, (r[0], r[1]), (r[0] + r[2], r[1] + r[3]), (255, 0, 0))
+        cv2.rectangle(image, (r[0], r[1]), (r[0] + r[2], r[1] + r[3]), (255, 0, 0),3)
         cv2.putText(image, guess + " " + str(reg[2] * 100), (r[0], r[1]), cv2.FONT_HERSHEY_SIMPLEX, 1,
                     (255, 255, 255), 2, cv2.LINE_AA)
         cv2.imshow("d", image)
