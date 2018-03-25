@@ -9,6 +9,7 @@ extension = ".webm"
 nameVideos = ["arbol", "casa", "zagal", "pez"]
 
 MAXAREA = 500
+NUMBER_NEIGHBORS = 5
 
 
 def GetAllDescriptors():
@@ -16,14 +17,12 @@ def GetAllDescriptors():
     allDescriptors = None
     for path in nameVideos:
         counter = 0
-        segmented = None
-        prevFrame = None
         print pathVideos + path + extension
         capture = cv2.VideoCapture(pathVideos + path + extension)
         while True:
             # Capturamos
             ret, frame = capture.read()
-            if ret == False:
+            if not ret:
                 break
             counter += 1
             if counter % 10 is not 0:
@@ -34,9 +33,6 @@ def GetAllDescriptors():
 
             # Convertimos a gris
             gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
-            if prevFrame is not None:
-                segmented = SegmentFrame(gray, prevFrame)
-            prevFrame = np.copy(gray)
 
             # Escalamos
             grayScale = scale(gray)
@@ -90,7 +86,6 @@ def GenerateCodebook(descriptors):
 def GenerateAllHistograms(codebook, dev):
     allHistograms = []
     orb = cv2.ORB_create()
-    allDescriptors = None
     for path in nameVideos:
         counter = 0
         histograms = None
@@ -99,7 +94,7 @@ def GenerateAllHistograms(codebook, dev):
         while True:
             # Capturamos
             ret, frame = capture.read()
-            if ret == False:
+            if not ret:
                 break
             counter += 1
             if counter % 10 is not 0:
@@ -125,7 +120,6 @@ def GenerateAllHistograms(codebook, dev):
                 keypoints, descriptors = orb.detectAndCompute(imgReg, None)
                 if descriptors is not None and descriptors.shape[0] > 20:
                     histogram, limites = np.histogram(vq(descriptors / dev, codebook)[0], bins=range(21))
-                    #                    histogram, limites = np.histogram(vq(descriptors/dev, codebook)[:][1],bins=range(21))
                     if histograms is None:
                         histograms = histogram
                     else:
@@ -193,7 +187,8 @@ def intersection(a, b):
     y = max(a[1], b[1])
     w = min(a[0] + a[2], b[0] + b[2]) - x
     h = min(a[1] + a[3], b[1] + b[3]) - y
-    if w < 0 or h < 0: return (0, 0, 0, 0)
+    if w < 0 or h < 0:
+        return (0, 0, 0, 0)
     return (x, y, w, h)
 
 
@@ -205,7 +200,7 @@ def areaIntersec(a, b):
     AInter = area(intersection(a, b))
     AUnion = area(union(a, b))
     Porcent = 0.
-    if AInter is not 0:
+    if AUnion is not 0:
         Porcent = float(AInter) / AUnion
     return AInter, AUnion, Porcent
 
@@ -214,7 +209,7 @@ def Init_Matcher():
     try:
         codebook = pickle.load(open('codebook_s1.pickle', 'r'))
         dev = pickle.load(open('dev_s1.pickle', 'r'))
-    except:
+    except IOError:
         print "Comienzo a generar codebook"
         descriptors = GetAllDescriptors()
         codebook, dev = GenerateCodebook(descriptors)
@@ -223,7 +218,7 @@ def Init_Matcher():
         print "He terminado de generar el codebook"
     try:
         allHistograms = pickle.load(open('allHistograms_s1.pickle', 'r'))
-    except:
+    except IOError:
         allHistograms = GenerateAllHistograms(codebook, dev)
         pickle.dump(allHistograms, open('allHistograms_s1.pickle', 'w'))
     return allHistograms, codebook, dev
@@ -267,22 +262,21 @@ def joinRegions(guessReg):
                 continue
             # print r1[1],r2[1], Porcent, r1[2],r2[2]
             if r1[1] == r2[1]:
-                if Porcent > 0.25:
-                    newGuessReg.append((union(r1[0], r2[0]), r1[1], r1[2]))
+                if Porcent >= 0.20:
+                    newGuessReg.append((union(r1[0], r2[0]), r1[1], (r1[2] + r2[2]) / 2))
                     flagsRemove[i] = 1
                     flagsRemove[j] = 1
             else:
-                if r1[1] is "Desconocido":
-                    flagsRemove[i] = 1
-                elif r2[1] is "Desconocido":
-                    flagsRemove[j] = 1
-                elif Porcent > 0.20:
+                if Porcent > 0.15:
                     if r1[2] > r2[2]:
+                        flagsRemove[i] = 1
                         flagsRemove[j] = 1
+                        newGuessReg.append((union(r1[0], r2[0]), r1[1], r1[2]))
                         # print r1[1], r2[1], Porcent, r1[2], r2[2], "ELEJIDO "+r1[1]
                     else:
                         flagsRemove[i] = 1
-                        # print r1[1], r2[1], Porcent, r1[2], r2[2], "ELEJIDO " + r2[1]
+                        flagsRemove[j] = 1
+                        newGuessReg.append((union(r1[0], r2[0]), r2[1], r2[2]))
 
     guessReg = [guessReg[i] for i in range(len(guessReg)) if flagsRemove[i] is not 1]
 
@@ -311,13 +305,13 @@ if __name__ == "__main__":
     X = [x for h in allHistograms for x in h]
     Y = [nameVideos[c] for c in range(len(nameVideos)) for x in range(len(allHistograms[c]))]
 
-    neigh = KNeighborsClassifier(n_neighbors=5)
+    neigh = KNeighborsClassifier(n_neighbors=NUMBER_NEIGHBORS)
     neigh.fit(X, Y)
 
     while True:
         # Capturamos
         ret, frame = capture.read()
-        if ret == False:
+        if not ret:
             break
 
         # Recortamos
