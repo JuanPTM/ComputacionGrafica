@@ -4,10 +4,9 @@ import numpy as np
 from scipy.cluster.vq import vq, kmeans
 from sklearn.neighbors import KNeighborsClassifier
 
-
 pathVideos = "movies/"
 extension = ".webm"
-nameVideos=["arbol", "casa", "zagal", "pez"]
+nameVideos = ["arbol", "casa", "zagal", "pez"]
 
 MAXAREA = 500
 
@@ -19,15 +18,15 @@ def GetAllDescriptors():
         counter = 0
         segmented = None
         prevFrame = None
-        print pathVideos+path+extension
-        capture = cv2.VideoCapture(pathVideos+path+extension)
+        print pathVideos + path + extension
+        capture = cv2.VideoCapture(pathVideos + path + extension)
         while True:
             # Capturamos
             ret, frame = capture.read()
             if ret == False:
                 break
             counter += 1
-            if counter % 10 is not 0: #TODO change to all samples
+            if counter % 10 is not 0:
                 continue
 
             # Convertimos a gris
@@ -36,7 +35,7 @@ def GetAllDescriptors():
             # Convertimos a gris
             gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
             if prevFrame is not None:
-                segmented = SegmentFrame(gray,prevFrame)
+                segmented = SegmentFrame(gray, prevFrame)
             prevFrame = np.copy(gray)
 
             # Escalamos
@@ -48,12 +47,11 @@ def GetAllDescriptors():
 
             regions, contornos = extractIntReg(procesedImage)
 
-
             if len(regions) > 4:
                 continue
 
             for r in regions:
-                imgReg = grayScale[r[1]:r[1]+r[3], r[0]:r[0]+r[2]]
+                imgReg = grayScale[r[1]:r[1] + r[3], r[0]:r[0] + r[2]]
                 # Sacamos keypoints y descriptores
                 keypoints, descriptors = orb.detectAndCompute(imgReg, None)
                 if descriptors is not None and descriptors.shape[0] > 20:
@@ -85,19 +83,19 @@ def whiten(v, dev=None):
 
 def GenerateCodebook(descriptors):
     whitened, dev = whiten(descriptors)
-    codebook, distortion = kmeans(whitened, 21)
+    codebook, distortion = kmeans(whitened, 20)
     return codebook, dev
 
 
 def GenerateAllHistograms(codebook, dev):
-    allHistograms =[]
+    allHistograms = []
     orb = cv2.ORB_create()
     allDescriptors = None
     for path in nameVideos:
         counter = 0
         histograms = None
-        print pathVideos+path+extension
-        capture = cv2.VideoCapture(pathVideos+path+extension)
+        print pathVideos + path + extension
+        capture = cv2.VideoCapture(pathVideos + path + extension)
         while True:
             # Capturamos
             ret, frame = capture.read()
@@ -112,7 +110,6 @@ def GenerateAllHistograms(codebook, dev):
             # Convertimos a gris
             gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
 
-
             # Escalamos
             grayScale = scale(gray)
 
@@ -123,12 +120,12 @@ def GenerateAllHistograms(codebook, dev):
             regions, contornos = extractIntReg(procesedImage)
 
             for r in regions:
-                imgReg = grayScale[r[1]:r[1]+r[3], r[0]:r[0]+r[2]]
+                imgReg = grayScale[r[1]:r[1] + r[3], r[0]:r[0] + r[2]]
                 # Sacamos keypoints y descriptores
                 keypoints, descriptors = orb.detectAndCompute(imgReg, None)
                 if descriptors is not None and descriptors.shape[0] > 20:
-                    histogram, limites = np.histogram(vq(descriptors/dev, codebook)[0],bins=range(21))
-#                    histogram, limites = np.histogram(vq(descriptors/dev, codebook)[:][1],bins=range(21))
+                    histogram, limites = np.histogram(vq(descriptors / dev, codebook)[0], bins=range(21))
+                    #                    histogram, limites = np.histogram(vq(descriptors/dev, codebook)[:][1],bins=range(21))
                     if histograms is None:
                         histograms = histogram
                     else:
@@ -138,78 +135,78 @@ def GenerateAllHistograms(codebook, dev):
 
 
 def SegmentFrame(frameGray, prevframeGray):
-    m = np.subtract(prevframeGray.astype(np.int16),frameGray.astype(np.int16))
+    m = np.subtract(prevframeGray.astype(np.int16), frameGray.astype(np.int16))
     return np.absolute(m).astype(np.int8)
 
 
-def FilterByRange(frameGray,minValue=90,maxValue=250):
-     return 255-cv2.inRange(frameGray, minValue, maxValue)
+def FilterByRange(frameGray, minValue=90, maxValue=250):
+    return 255 - cv2.inRange(frameGray, minValue, maxValue)
 
 
 def cropToRequirements(image):
-    return image[100:-100,100:-170]
+    return image[100:-100, 100:-170]
 
 
-def scale(image,col=1120):
+def scale(image, col=1120):
     col = float(col)
-    return cv2.resize(image,None,fx=col/image.shape[1],fy=col/image.shape[1])
+    return cv2.resize(image, None, fx=col / image.shape[1], fy=col / image.shape[1])
 
 
 def morphFilters(binFrame):
-    kernel = np.ones((3,3),np.uint8)
-    dilateImage = cv2.dilate(binFrame,kernel,iterations=1)
-    erodeImg = cv2.erode(dilateImage,kernel,iterations=2)
+    kernel = np.ones((3, 3), np.uint8)
+    dilateImage = cv2.dilate(binFrame, kernel, iterations=1)
+    erodeImg = cv2.erode(dilateImage, kernel, iterations=2)
     dilateImage = cv2.dilate(erodeImg, kernel, iterations=4)
     return dilateImage
 
 
 def extractIntReg(binFrame, padding=10, minCont=50):
     regions = []
-    image,contours,hierarchy = cv2.findContours(binFrame,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)
+    image, contours, hierarchy = cv2.findContours(binFrame, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     for cont in contours:
-        if cv2.contourArea(cont)>300:
-            x,y,w,h = cv2.boundingRect(cont)
+        if cv2.contourArea(cont) > 300:
+            x, y, w, h = cv2.boundingRect(cont)
             paddingx = paddingy = paddingw = paddingh = 10
             if x < 10:
                 paddingx = x
             if y < 10:
                 paddingy = y
-            if x+w+padding >= image.shape[1]:
+            if x + w + padding >= image.shape[1]:
                 paddingw = image.shape[1] - x - w - 1
-            if y+h+padding >= image.shape[0]:
+            if y + h + padding >= image.shape[0]:
                 paddingh = image.shape[0] - y - h - 1
-            regions.append((x-paddingx,y-paddingy, w+paddingx+paddingw, h+paddingy+paddingh))
+            regions.append((x - paddingx, y - paddingy, w + paddingx + paddingw, h + paddingy + paddingh))
             # regions.append((x,y, w, h))
-    return regions,contours
+    return regions, contours
 
 
-def union(a,b):
-  x = min(a[0], b[0])
-  y = min(a[1], b[1])
-  w = max(a[0]+a[2], b[0]+b[2]) - x
-  h = max(a[1]+a[3], b[1]+b[3]) - y
-  return (x, y, w, h)
+def union(a, b):
+    x = min(a[0], b[0])
+    y = min(a[1], b[1])
+    w = max(a[0] + a[2], b[0] + b[2]) - x
+    h = max(a[1] + a[3], b[1] + b[3]) - y
+    return (x, y, w, h)
 
 
-def intersection(a,b):
-  x = max(a[0], b[0])
-  y = max(a[1], b[1])
-  w = min(a[0]+a[2], b[0]+b[2]) - x
-  h = min(a[1]+a[3], b[1]+b[3]) - y
-  if w<0 or h<0: return (0,0,0,0)
-  return (x, y, w, h)
+def intersection(a, b):
+    x = max(a[0], b[0])
+    y = max(a[1], b[1])
+    w = min(a[0] + a[2], b[0] + b[2]) - x
+    h = min(a[1] + a[3], b[1] + b[3]) - y
+    if w < 0 or h < 0: return (0, 0, 0, 0)
+    return (x, y, w, h)
 
 
 def area(a):
     return a[2] * a[3]
 
 
-def areaIntersec(a,b):
+def areaIntersec(a, b):
     AInter = area(intersection(a, b))
     AUnion = area(union(a, b))
     Porcent = 0.
     if AInter is not 0:
-        Porcent = float(AInter)/AUnion
+        Porcent = float(AInter) / AUnion
     return AInter, AUnion, Porcent
 
 
@@ -246,14 +243,15 @@ def classifyRegion(grayScaleFrame, regions, orb, neigh):
             prob = np.amax(neigh.predict_proba([hist])[0])
             # print prob
             # print guess
-            if prob < 0.5:
+            # print neigh.predict_proba([hist])
+            if prob <= 0.5:
                 guess = "Desconocido"
             guessReg.append((r, guess, prob))
 
     return guessReg
 
 
-def joinRegions(guessReg,):
+def joinRegions(guessReg):
     newGuessReg = []
     flagsRemove = [0] * len(guessReg)
 
@@ -297,7 +295,7 @@ def printImage(image, regions):
     for reg in regions:
         r = reg[0]
         guess = reg[1]
-        cv2.rectangle(image, (r[0], r[1]), (r[0] + r[2], r[1] + r[3]), (255, 0, 0),3)
+        cv2.rectangle(image, (r[0], r[1]), (r[0] + r[2], r[1] + r[3]), (255, 0, 0), 3)
         cv2.putText(image, guess + " " + str(reg[2] * 100), (r[0], r[1]), cv2.FONT_HERSHEY_SIMPLEX, 1,
                     (255, 255, 255), 2, cv2.LINE_AA)
         cv2.imshow("d", image)
@@ -310,13 +308,11 @@ if __name__ == "__main__":
     orb = cv2.ORB_create()
     capture = cv2.VideoCapture("movies/test.webm")
 
-
-    X = [x for h in allHistograms for x in h ]
+    X = [x for h in allHistograms for x in h]
     Y = [nameVideos[c] for c in range(len(nameVideos)) for x in range(len(allHistograms[c]))]
 
     neigh = KNeighborsClassifier(n_neighbors=5)
     neigh.fit(X, Y)
-
 
     while True:
         # Capturamos
@@ -330,7 +326,6 @@ if __name__ == "__main__":
         # Convertimos a gris
         gray = cv2.cvtColor(crop, cv2.COLOR_BGR2GRAY)
 
-
         # Escalamos
         grayScale = scale(gray)
 
@@ -342,9 +337,9 @@ if __name__ == "__main__":
 
         outImage = np.copy(scale(crop))
 
-        cv2.drawContours(outImage, contornos, -1, (0,255,0), 3)
+        cv2.drawContours(outImage, contornos, -1, (0, 255, 0), 3)
 
-        guessReg = classifyRegion(grayScale,regions,orb,neigh)
+        guessReg = classifyRegion(grayScale, regions, orb, neigh)
 
         finalReg = joinRegions(guessReg)
 
@@ -352,4 +347,3 @@ if __name__ == "__main__":
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-
